@@ -1,5 +1,6 @@
 import WebSocket, {WebSocketServer} from 'ws';
 import http from 'http';
+import { GameManager } from './gameManager/gameManager';
 
 const server = http.createServer(function(request:any,response:any){
     console.log((new Date()) + "Recieved Request for "+ request.url);
@@ -10,10 +11,15 @@ const wss = new WebSocketServer({server});
 
 let userCount=0;
 
-wss.on('connection',function connection(ws){
-    ws.on('error',console.error);
+wss.on('connection',function connection(socket){
+    if(userCount==2){
+        socket.send("Sorry, the game is full");
+        socket.close();
+        return;
+    }
+    socket.on('error',console.error);
 
-    ws.on('message',function message(data,binary){
+    socket.on('message',function message(data,binary){
         console.log("message recieved");
         wss.clients.forEach(function each(client){
             if(client.readyState===WebSocket.OPEN){
@@ -21,8 +27,19 @@ wss.on('connection',function connection(ws){
             }
         });
     });
+    
     console.log("Users connected ",++userCount);
-    ws.send("Hello from the server");
+
+    if(userCount==2){
+        wss.clients.forEach(function each(client){
+            if(client.readyState===WebSocket.OPEN){
+                client.send("Game is ready to start");
+            }
+        });
+
+        const gameManager = new GameManager("black","white");
+    }
+    socket.send("Hello from the server");
 });
 
 server.listen(8080,()=>{
